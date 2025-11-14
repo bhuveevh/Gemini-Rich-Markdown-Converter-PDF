@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini Rich Markdown Converter PDF</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/showdown/2.1.0/showdown.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            },
+            svg: {
+                fontCache: 'global'
+            }
+        };
+    </script>
+    <script type="text/javascript" id="MathJax-script" async
+      src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
+    </script>
+
+    <style>
+        /* --- General and Layout Styling (Flat UI - Unchanged) --- */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            margin: 0;
+            padding: 20px; 
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .container {
+            width: 100%; 
+            max-width: 1200px; 
+            background: #fff; 
+            padding: 20px; 
+            border: 1px solid #ddd; 
+            box-shadow: none; 
+            border-radius: 0;
+        }
+        h1 { color: #007bff; text-align: center; margin-bottom: 20px; }
+        
+        /* Layout: Stacked (Input Top, Output Bottom - Unchanged) */
+        .stacked-view { 
+            display: flex; 
+            flex-direction: column; 
+            gap: 20px; 
+        }
+        .input-panel, .output-panel { 
+            flex: 1; 
+            min-width: 0; 
+            border: 1px solid #ccc; 
+            padding: 15px;
+            border-radius: 0; 
+        }
+        .input-panel h2, .output-panel h2 { margin-top: 0; }
+        
+        #markdown-input {
+            width: 100%; 
+            min-height: 300px; 
+            padding: 10px; 
+            border: 1px solid #ddd; 
+            font-family: 'Consolas', 'Courier New', monospace; 
+            font-size: 16px; 
+            resize: vertical; 
+            box-sizing: border-box;
+            border-radius: 0; 
+        }
+        .output-actions {
+            display: flex; 
+            gap: 10px; 
+            margin-bottom: 15px; 
+            justify-content: flex-end;
+        }
+        .action-button {
+            padding: 10px 18px; 
+            border: none; 
+            cursor: pointer; 
+            font-weight: 600; 
+            transition: background-color 0.2s;
+            border-radius: 0; 
+            text-transform: uppercase;
+        }
+        #copy-output { background-color: #6c757d; color: white; }
+        #download-pdf { background-color: #007bff; color: white; }
+        #copy-output:hover { background-color: #5a6268; }
+        #download-pdf:hover { background-color: #0056b3; }
+
+        /* --- WYSIWYG A4 Page Container (Whole page scrolls - Unchanged) --- */
+        #formatted-output-wrapper {
+            height: initial; 
+            overflow-y: visible; 
+            background-color: transparent; 
+            padding: 0;
+            box-shadow: none;
+            border-radius: 0;
+        }
+        
+        /* --- A4 Page Styling (The Core Layout - Unchanged) --- */
+        .a4-page {
+            width: 794px; 
+            min-height: 1123px; 
+            margin: 20px auto; 
+            background: white;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15); 
+            border-radius: 4px; 
+            border: 1px solid #aaa;
+            padding: 50px; 
+            box-sizing: border-box;
+            display: flex; 
+            flex-wrap: nowrap; 
+            justify-content: space-between; 
+            font-size: 11pt; 
+            line-height: 1.5;
+            position: relative;
+        }
+
+        /* --- Custom Columns inside A4 Page (Unchanged) --- */
+        .page-column {
+            width: calc(50% - 15px); 
+            min-height: 100%; 
+            box-sizing: border-box; 
+            overflow: hidden; 
+            page-break-inside: avoid; 
+        }
+
+        /* --- Markdown Element Styles (within A4 Page - Unchanged) --- */
+        .page-column table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin: 10px 0; 
+            font-size: 0.95em; 
+        }
+        .page-column th, .page-column td { 
+            border: 1px solid #dee2e6; 
+            padding: 8px; 
+            text-align: left; 
+        }
+        .page-column th { 
+            background-color: #f8f9fa; 
+            font-weight: bold; 
+        }
+        .page-column blockquote { 
+            margin: 10px 0; 
+            padding: 10px 15px; 
+            border-left: 5px solid #007bff; 
+            background-color: #e9f5ff; 
+            border-radius: 0; 
+        }
+        
+        /* Other content styles (Unchanged) */
+        .page-column h1, .page-column h2, .page-column h3 { color: #212529; border-bottom: 2px solid #e0e0e0; padding-bottom: 8px; margin-top: 20px; margin-bottom: 10px; border-radius: 0; }
+        .page-column ul, .page-column ol { padding-left: 30px; margin-bottom: 10px; }
+        .page-column li { margin-bottom: 5px; }
+        .link-preview-wrapper { display: block; clear: both; margin: 10px 0; padding: 5px 0; }
+        .link-preview { display: flex; border: 1px solid #ccc; border-radius: 0; overflow: hidden; text-decoration: none; color: inherit; max-width: 100%; background-color: #fcfcfc; }
+        .page-column h1, .page-column h2, .page-column h3, .page-column table, .page-column ul, .page-column ol, .page-column blockquote, .page-column .link-preview-wrapper {
+             page-break-inside: avoid;
+        }
+
+        /* --- MOBILE OPTIMIZATION FIX (Same) --- */
+        @media (max-width: 840px) {
+            .container { padding: 10px; }
+            .stacked-view { gap: 10px; } 
+
+            .output-actions { 
+                justify-content: center; 
+                flex-wrap: wrap; 
+                flex-direction: column; 
+            }
+            .action-button { 
+                width: 100%; 
+                margin-bottom: 5px; 
+            }
+            
+            .a4-page { 
+                width: calc(100% - 20px); 
+                min-height: initial; 
+                padding: 20px; 
+                margin: 10px auto; 
+                flex-direction: column; 
+            }
+            .page-column {
+                width: 100%; 
+            }
+        }
+        
+        /* Extra small screen tuning (down to 300px) */
+        @media (max-width: 400px) {
+            body { padding: 10px; } 
+            .container { padding: 5px; } 
+            .a4-page { 
+                padding: 10px; 
+                width: calc(100% - 10px); 
+            }
+            .action-button { padding: 8px 12px; font-size: 14px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>✨ Gemini Rich Markdown Converter PDF</h1>
+        <p>This application converts Gemini's rich Markdown content, including MathJax equations, tables, and rich links, into a clean, print-ready A4 PDF format with a flat, mobile-optimized UI.</p>
+
+        <div class="stacked-view">
+            <div class="input-panel">
+                <h2>1. Gemini Markdown Input</h2>
+                <textarea id="markdown-input" placeholder="Paste the Gemini copied text here..."></textarea>
+            </div>
+
+            <div class="output-panel">
+                <div class="output-actions">
+                    <button id="copy-output" class="action-button">📋 COPY OUTPUT</button>
+                    <button id="download-pdf" class="action-button">⬇️ DOWNLOAD PDF</button>
+                </div>
+                <h2>2. Formatted Output (A4 View)</h2>
+                
+
+                <div id="formatted-output-wrapper">
+                    <div class="a4-page">
+                        <div class="page-column left-column">
+                            <p>Paste the Markdown content into the input box to see the formatted output.</p>
+                        </div>
+                        <div class="page-column right-column"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- GLOBAL VARIABLES (Same) ---
+        let mathExpressions = [];
+        const PLACEHOLDER_IMG = 'https://via.placeholder.com/80x80.png?text=Link';
+        const MATH_PLACEHOLDER_PREFIX = '@@MATHEXPRESSION';
+        
+        // --- Helper Functions (Same) ---
+        function cleanUrl(url) {
+            try {
+                const decodedUrl = decodeURIComponent(url);
+                const urlObj = new URL(decodedUrl.startsWith('http') ? decodedUrl : `http://${decodedUrl}`);
+                return { full: decodedUrl, hostname: urlObj.hostname };
+            } catch (e) {
+                return { full: url, hostname: url };
+            }
+        }
+        const createPreviewHtml = (url, title = 'Link Preview') => {
+            const cleaned = cleanUrl(url);
+            let displayTitle = title;
+            if (title === url || title === cleaned.full) {
+                displayTitle = cleaned.hostname;
+                if (cleaned.hostname.includes('youtube.com')) {
+                    displayTitle = 'YouTube Video';
+                }
+            }
+            return `
+                <div class="link-preview-wrapper">
+                    <a href="${cleaned.full}" target="_blank" class="link-preview">
+                        <div class="preview-content">
+                            <span class="preview-title">${displayTitle}</span>
+                            <span class="preview-url">${cleaned.full}</span>
+                        </div>
+                        <img src="${PLACEHOLDER_IMG}" alt="Link Preview" class="preview-image">
+                    </a>
+                </div>
+            `;
+        };
+        
+        // --- MARKDOWN EXTENSIONS (Same) ---
+        const mathExpressionExtension = () => [
+            { 
+                type: 'lang', 
+                regex: /(\$\$[\s\S]*?\$\$|\$[^$]*?\$|\\\[[\s\S]*?\\\]|\\\([\s\S]*?\\\))/g, 
+                replace: (match) => { 
+                    const id = mathExpressions.length; 
+                    mathExpressions.push(match); 
+                    return `${MATH_PLACEHOLDER_PREFIX}${id}@@`; 
+                } 
+            },
+            { type: 'output', regex: new RegExp(`<p>${MATH_PLACEHOLDER_PREFIX}(\\d+)@@<\/p>`, 'g'), replace: (match, id) => mathExpressions[id].replace(/\n/g, '') },
+            { type: 'output', regex: new RegExp(`${MATH_PLACEHOLDER_PREFIX}(\\d+)@@`, 'g'), replace: (match, id) => mathExpressions[id] }
+        ];
+        
+        const plainUrlToPreviewExtension = () => [
+            { type: 'lang', regex: /(^|\s)(https?:\/\/[^\s"'<>()]+)/g, replace: (match, separator, url) => { if (url.includes(')')) return match; return `${separator}${createPreviewHtml(url, url)}`; } }
+        ];
+        const markdownLinkToPreviewExtension = () => [
+            { type: 'output', regex: /<a href="([^"]+)">([^<]+)<\/a>/g, replace: (match, url, text) => { if (match.includes('link-preview-wrapper')) return match; return createPreviewHtml(url, text); } }
+        ];
+
+        // --- Core Conversion Function (With Robust Content Loss Fix Applied) ---
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const inputArea = document.getElementById('markdown-input');
+            const outputWrapper = document.getElementById('formatted-output-wrapper');
+            const downloadPdfButton = document.getElementById('download-pdf');
+            const copyOutputButton = document.getElementById('copy-output');
+            
+            const COLUMN_HEIGHT_LIMIT = 1123 - (50 * 2); 
+
+            const converter = new showdown.Converter({
+                extensions: [mathExpressionExtension, plainUrlToPreviewExtension, markdownLinkToPreviewExtension],
+                ghCodeBlocks: true, tables: true, tasklists: true, literalMidWordUnderscores: false, noHeaderId: true 
+            });
+
+            async function convertMarkdown() {
+                mathExpressions = [];
+                const markdownText = inputArea.value;
+
+                const htmlOutput = converter.makeHtml(markdownText);
+                
+                outputWrapper.innerHTML = ''; 
+
+                const tempDiv = document.createElement('div');
+                tempDiv.style.visibility = 'hidden'; 
+                tempDiv.style.position = 'absolute';
+                document.body.appendChild(tempDiv);
+                tempDiv.innerHTML = htmlOutput;
+                
+                // Step 1: Typeset MathJax on the invisible content (for correct initial height calculation)
+                if (window.MathJax) {
+                    await MathJax.typesetPromise([tempDiv]); 
+                }
+
+                const blocks = Array.from(tempDiv.children);
+                
+                let currentPage = null;
+                let currentLeftColumn = null;
+                let currentRightColumn = null;
+                
+                function createNewPageAndColumns() {
+                    currentPage = document.createElement('div');
+                    currentPage.classList.add('a4-page');
+                    outputWrapper.appendChild(currentPage);
+
+                    currentLeftColumn = document.createElement('div');
+                    currentLeftColumn.classList.add('page-column', 'left-column');
+                    currentPage.appendChild(currentLeftColumn);
+
+                    currentRightColumn = document.createElement('div');
+                    currentRightColumn.classList.add('page-column', 'right-column');
+                    currentPage.appendChild(currentRightColumn);
+                }
+
+                createNewPageAndColumns(); 
+
+                for (const block of blocks) {
+                    const clonedBlock = block.cloneNode(true); 
+
+                    // 1. Try placing in the Left Column
+                    currentLeftColumn.appendChild(clonedBlock);
+                    currentLeftColumn.offsetHeight; // FIX: Force reflow
+
+                    if (currentLeftColumn.scrollHeight > COLUMN_HEIGHT_LIMIT) {
+                        
+                        // Too large for Left. Remove and try Right.
+                        currentLeftColumn.removeChild(clonedBlock);
+                        currentRightColumn.appendChild(clonedBlock);
+                        currentRightColumn.offsetHeight; // FIX: Force reflow
+
+                        if (currentRightColumn.scrollHeight > COLUMN_HEIGHT_LIMIT) {
+                            
+                            // Too large for Right. Remove and go to New Page.
+                            currentRightColumn.removeChild(clonedBlock);
+                            
+                            createNewPageAndColumns();
+                            currentLeftColumn.appendChild(clonedBlock);
+                            currentLeftColumn.offsetHeight; // FIX: Force reflow
+                        }
+                    }
+                }
+                
+                document.body.removeChild(tempDiv);
+                
+                // *** Step 2: FINAL FIX - Re-typeset MathJax on the final output to confirm correct sizing after moving ***
+                // This ensures content like MathJax and Tables are accurately sized after being placed into the final columns.
+                if (window.MathJax) {
+                    await MathJax.typesetPromise([outputWrapper]); 
+                }
+            }
+
+            // --- PDF Download Function (Same) ---
+            downloadPdfButton.addEventListener('click', async () => {
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('p', 'pt', 'a4');
+                const pages = outputWrapper.querySelectorAll('.a4-page');
+                
+                if (pages.length === 0) return; 
+
+                // UPDATED: English Button Text
+                downloadPdfButton.disabled = true;
+                downloadPdfButton.textContent = 'GENERATING PDF...';
+
+                for (let i = 0; i < pages.length; i++) {
+                    const page = pages[i];
+                    
+                    if (i > 0) {
+                        pdf.addPage();
+                    }
+
+                    const canvas = await html2canvas(page, {
+                        scale: 1.5, 
+                        useCORS: true,
+                        width: 794,
+                        height: 1123,
+                    });
+
+                    const imgData = canvas.toDataURL('image/jpeg', 1.0);
+                    
+                    pdf.addImage(imgData, 'JPEG', 0, 0, 595.28, 841.89); 
+                }
+                
+                pdf.save("Gemini Rich Markdown Converter PDF_Compressandresize_space.pdf");
+
+                // UPDATED: English Button Text
+                downloadPdfButton.disabled = false;
+                downloadPdfButton.textContent = '⬇️ DOWNLOAD PDF';
+            });
+
+            // --- Copy Output Function (Same, but with English messages) ---
+            copyOutputButton.addEventListener('click', () => {
+                const textToCopy = Array.from(outputWrapper.querySelectorAll('.a4-page'))
+                    .map(page => page.innerText)
+                    .join('\n\n--- Page Break ---\n\n'); 
+                
+                navigator.clipboard.writeText(textToCopy)
+                    .then(() => {
+                        // UPDATED: English Status
+                        copyOutputButton.textContent = '✅ COPIED!';
+                    })
+                    .catch(() => {
+                        // UPDATED: English Status
+                        copyOutputButton.textContent = '❌ FAILED TO COPY';
+                    })
+                    .finally(() => {
+                        setTimeout(() => {
+                            // UPDATED: English Button Text
+                            copyOutputButton.textContent = '📋 COPY OUTPUT';
+                        }, 2000);
+                    });
+            });
+
+            inputArea.addEventListener('input', convertMarkdown);
+            
+            // Initialization
+            convertMarkdown(); 
+        });
+    </script>
+</body>
+</html>
