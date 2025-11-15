@@ -31,12 +31,12 @@
             background-color: #f4f7f6;
             color: #333;
             margin: 0;
-            padding: 20px 10px; /* Reduced horizontal padding for small screens */
+            padding: 20px 10px; 
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center; /* Added for vertical centering robustness */
-            min-height: 100vh; /* Ensure body takes full viewport height */
+            justify-content: center; 
+            min-height: 100vh; 
         }
         .container {
             width: 100%; 
@@ -47,7 +47,7 @@
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05); 
             border-radius: 4px; 
             box-sizing: border-box;
-            margin: 0 auto; /* Ensure center alignment */
+            margin: 0 auto; 
         }
         h1 { color: #007bff; text-align: center; margin-bottom: 20px; }
         
@@ -109,8 +109,10 @@
         
         /* --- A4 Page Styling (The Core Layout) --- */
         .a4-page {
-            width: 794px; 
-            min-height: 1123px; 
+            /* 1. UI SHIFT FIX: Replaced fixed A4 width with a fluid width (max 100%) to match the input container width */
+            width: 100%; /* Make it take the full width of the parent (output-panel) */
+            max-width: 794px; /* Still maintains the A4 visual limit for wide screens */
+            min-height: 1123px; /* Keeps the A4 aspect ratio height visual */
             margin: 20px auto; 
             background: white;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15); 
@@ -124,7 +126,6 @@
             font-size: 11pt; 
             line-height: 1.5;
             position: relative;
-            /* 2. JUSTIFIED TEXT FIX: Added justify for all content in the page */
             text-align: justify; 
         }
 
@@ -138,13 +139,12 @@
         }
         
         /* --- Markdown Element Styles (within A4 Page) --- */
-        /* Note: text-align: justify; is inherited by children, no need to set it again here unless an element needs override */
-        .page-column table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 0.95em; text-align: left; /* Tables should be left-aligned */ }
+        .page-column table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 0.95em; text-align: left; }
         .page-column th, .page-column td { border: 1px solid #dee2e6; padding: 8px; text-align: left; }
         .page-column th { background-color: #f8f9fa; font-weight: bold; }
         .page-column blockquote { margin: 10px 0; padding: 10px 15px; border-left: 5px solid #007bff; background-color: #e9f5ff; border-radius: 0; }
-        .page-column h1, .page-column h2, .page-column h3 { color: #212529; border-bottom: 2px solid #e0e0e0; padding-bottom: 8px; margin-top: 20px; margin-bottom: 10px; border-radius: 0; text-align: left; /* Headings should be left-aligned */ }
-        .page-column ul, .page-column ol { padding-left: 30px; margin-bottom: 10px; text-align: left; /* Lists should be left-aligned */ }
+        .page-column h1, .page-column h2, .page-column h3 { color: #212529; border-bottom: 2px solid #e0e0e0; padding-bottom: 8px; margin-top: 20px; margin-bottom: 10px; border-radius: 0; text-align: left; }
+        .page-column ul, .page-column ol { padding-left: 30px; margin-bottom: 10px; text-align: left; }
         .page-column li { margin-bottom: 5px; }
         .page-column h1, .page-column h2, .page-column h3, .page-column table, .page-column ul, .page-column ol, .page-column blockquote, .page-column .link-preview-wrapper { page-break-inside: avoid; }
     </style>
@@ -241,7 +241,7 @@
             { type: 'output', regex: /<a href="([^"]+)">([^<]+)<\/a>/g, replace: (match, url, text) => { if (match.includes('link-preview-wrapper')) return match; return createPreviewHtml(url, text); } }
         ];
 
-        // --- PERFORMANCE FIX: Debounce function to prevent lag on every keypress ---
+        // --- PERFORMANCE FIX: Debounce function (Same) ---
         function debounce(func, delay) {
             let timeout;
             return function(...args) {
@@ -250,7 +250,7 @@
             };
         }
 
-        // --- Core Conversion Function (With Robust Content Loss Fix Applied) ---
+        // --- Core Conversion Function (Same Logic) ---
 
         document.addEventListener('DOMContentLoaded', () => {
             const inputArea = document.getElementById('markdown-input');
@@ -280,7 +280,7 @@
                 document.body.appendChild(tempDiv);
                 tempDiv.innerHTML = htmlOutput;
                 
-                // Step 1: Typeset MathJax on the invisible content (for correct initial height calculation)
+                // Step 1: Typeset MathJax on the invisible content 
                 if (window.MathJax) {
                     await MathJax.typesetPromise([tempDiv]); 
                 }
@@ -312,14 +312,14 @@
 
                     // 1. Try placing in the Left Column
                     currentLeftColumn.appendChild(clonedBlock);
-                    currentLeftColumn.offsetHeight; // FIX: Force reflow
+                    currentLeftColumn.offsetHeight; 
 
                     if (currentLeftColumn.scrollHeight > COLUMN_HEIGHT_LIMIT) {
                         
                         // Too large for Left. Remove and try Right.
                         currentLeftColumn.removeChild(clonedBlock);
                         currentRightColumn.appendChild(clonedBlock);
-                        currentRightColumn.offsetHeight; // FIX: Force reflow
+                        currentRightColumn.offsetHeight; 
 
                         if (currentRightColumn.scrollHeight > COLUMN_HEIGHT_LIMIT) {
                             
@@ -328,14 +328,14 @@
                             
                             createNewPageAndColumns();
                             currentLeftColumn.appendChild(clonedBlock);
-                            currentLeftColumn.offsetHeight; // FIX: Force reflow
+                            currentLeftColumn.offsetHeight; 
                         }
                     }
                 }
                 
                 document.body.removeChild(tempDiv);
                 
-                // *** Step 2: FINAL FIX - Re-typeset MathJax on the final output to confirm correct sizing after moving ***
+                // *** Step 2: FINAL FIX - Re-typeset MathJax on the final output ***
                 if (window.MathJax) {
                     await MathJax.typesetPromise([outputWrapper]); 
                 }
@@ -345,10 +345,11 @@
             const debouncedConvertMarkdown = debounce(convertMarkdown, 300);
 
 
-            // --- PDF Download Function (Same) ---
+            // --- PDF Download Function (PDF sizing is FIXED at 794x1123 for A4) ---
             downloadPdfButton.addEventListener('click', async () => {
                 const { jsPDF } = window.jspdf;
-                const pdf = new jsPDF('p', 'pt', 'a4');
+                // PDF object is created in A4 (portrait) size in points (pt)
+                const pdf = new jsPDF('p', 'pt', 'a4'); 
                 const pages = outputWrapper.querySelectorAll('.a4-page');
                 
                 if (pages.length === 0) return; 
@@ -363,15 +364,19 @@
                         pdf.addPage();
                     }
 
+                    // html2canvas renders the visual page (which is now fluid/responsive)
+                    // but we ensure it renders to the exact A4 dimensions for PDF quality.
                     const canvas = await html2canvas(page, {
                         scale: 1.5, 
                         useCORS: true,
-                        width: 794,
+                        // Crucial: Use the fixed A4 dimensions for the canvas itself
+                        width: 794, 
                         height: 1123,
                     });
 
                     const imgData = canvas.toDataURL('image/jpeg', 1.0);
                     
+                    // Add the image to the PDF page (A4 dimensions in pt: 595.28 x 841.89)
                     pdf.addImage(imgData, 'JPEG', 0, 0, 595.28, 841.89); 
                 }
                 
