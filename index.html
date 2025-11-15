@@ -97,23 +97,23 @@
         #copy-output:hover { background-color: #5a6268; }
         #download-pdf:hover { background-color: #0056b3; }
 
-        /* --- WYSIWYG A4 Page Container --- */
+        /* --- WYSIWYG A4 Page Container (The wrapper that contains the scaled A4 content) --- */
         #formatted-output-wrapper {
             height: initial; 
-            overflow-y: visible; 
+            overflow: hidden; /* Hide overflow of the scaled content */
             background-color: transparent; 
             padding: 0;
             box-shadow: none;
             border-radius: 0;
+            position: relative;
         }
         
         /* --- A4 Page Styling (The Core Layout) --- */
         .a4-page {
-            /* 1. UI SHIFT FIX: Replaced fixed A4 width with a fluid width (max 100%) to match the input container width */
-            width: 100%; /* Make it take the full width of the parent (output-panel) */
-            max-width: 794px; /* Still maintains the A4 visual limit for wide screens */
-            min-height: 1123px; /* Keeps the A4 aspect ratio height visual */
-            margin: 20px auto; 
+            /* 1. CONTENT FIX: Reverted to fixed A4 width (794px) to preserve original content layout */
+            width: 794px; 
+            min-height: 1123px; 
+            margin: 20px 0; /* Remove auto margins, let the wrapper center it */
             background: white;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15); 
             border-radius: 4px; 
@@ -127,6 +127,9 @@
             line-height: 1.5;
             position: relative;
             text-align: justify; 
+            
+            /* CSS TRANSFORM related styles for scaling */
+            transform-origin: top left; /* Scale from top left corner */
         }
 
         /* --- Custom Columns inside A4 Page --- */
@@ -138,7 +141,7 @@
             page-break-inside: avoid; 
         }
         
-        /* --- Markdown Element Styles (within A4 Page) --- */
+        /* --- Markdown Element Styles (Same) --- */
         .page-column table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 0.95em; text-align: left; }
         .page-column th, .page-column td { border: 1px solid #dee2e6; padding: 8px; text-align: left; }
         .page-column th { background-color: #f8f9fa; font-weight: bold; }
@@ -186,6 +189,8 @@
         let mathExpressions = [];
         const PLACEHOLDER_IMG = 'https://via.placeholder.com/80x80.png?text=Link';
         const MATH_PLACEHOLDER_PREFIX = '@@MATHEXPRESSION';
+        const A4_WIDTH_PX = 794; // Fixed A4 width for scaling calculation and PDF generation
+        const COLUMN_HEIGHT_LIMIT = 1123 - (50 * 2); 
         
         // --- Helper Functions (Same) ---
         function cleanUrl(url) {
@@ -249,8 +254,47 @@
                 timeout = setTimeout(() => func.apply(this, args), delay);
             };
         }
+        
+        // --- NEW: Scaling Logic ---
+        function applyScaling() {
+            const outputPanel = document.querySelector('.output-panel');
+            const wrapper = document.getElementById('formatted-output-wrapper');
+            const pages = wrapper.querySelectorAll('.a4-page');
+            
+            if (pages.length === 0 || !outputPanel) return;
 
-        // --- Core Conversion Function (Same Logic) ---
+            // Calculate the maximum available width for the scaled content
+            const availableWidth = outputPanel.clientWidth - 30; // 30px is roughly the output-panel padding on both sides (15px each)
+
+            // Calculate the scale factor
+            let scale = 1;
+            if (availableWidth < A4_WIDTH_PX) {
+                // If available width is less than the fixed A4 width, scale it down.
+                scale = availableWidth / A4_WIDTH_PX;
+            } else {
+                // If available width is enough, do not scale (or scale to 1)
+                scale = 1; 
+            }
+
+            // Apply the transform scale to all pages
+            pages.forEach(page => {
+                page.style.transform = `scale(${scale})`;
+            });
+
+            // Adjust the wrapper height to contain the scaled content
+            if (scale < 1) {
+                wrapper.style.height = `${pages[0].offsetHeight * scale + 40}px`; // Adjust wrapper height for the scaled page height + some margin
+                wrapper.style.width = `${pages[0].offsetWidth * scale}px`; // Adjust wrapper width
+                wrapper.style.margin = '0 auto'; // Center the scaled wrapper
+            } else {
+                wrapper.style.height = 'initial';
+                wrapper.style.width = 'initial';
+                wrapper.style.margin = 'initial';
+            }
+        }
+
+
+        // --- Core Conversion Function (With Scaling Called) ---
 
         document.addEventListener('DOMContentLoaded', () => {
             const inputArea = document.getElementById('markdown-input');
@@ -258,8 +302,6 @@
             const downloadPdfButton = document.getElementById('download-pdf');
             const copyOutputButton = document.getElementById('copy-output');
             
-            const COLUMN_HEIGHT_LIMIT = 1123 - (50 * 2); 
-
             const converter = new showdown.Converter({
                 extensions: [mathExpressionExtension, plainUrlToPreviewExtension, markdownLinkToPreviewExtension],
                 ghCodeBlocks: true, tables: true, tasklists: true, literalMidWordUnderscores: false, noHeaderId: true 
@@ -339,6 +381,9 @@
                 if (window.MathJax) {
                     await MathJax.typesetPromise([outputWrapper]); 
                 }
+                
+                // *** NEW: Apply scaling after content is rendered ***
+                applyScaling();
             }
 
             // Create a debounced version of the conversion function (300ms delay)
@@ -348,7 +393,6 @@
             // --- PDF Download Function (PDF sizing is FIXED at 794x1123 for A4) ---
             downloadPdfButton.addEventListener('click', async () => {
                 const { jsPDF } = window.jspdf;
-                // PDF object is created in A4 (portrait) size in points (pt)
                 const pdf = new jsPDF('p', 'pt', 'a4'); 
                 const pages = outputWrapper.querySelectorAll('.a4-page');
                 
@@ -364,19 +408,23 @@
                         pdf.addPage();
                     }
 
-                    // html2canvas renders the visual page (which is now fluid/responsive)
-                    // but we ensure it renders to the exact A4 dimensions for PDF quality.
+                    // Temporarily remove scaling before taking the snapshot
+                    const originalTransform = page.style.transform;
+                    page.style.transform = 'scale(1)'; 
+                    
                     const canvas = await html2canvas(page, {
                         scale: 1.5, 
                         useCORS: true,
-                        // Crucial: Use the fixed A4 dimensions for the canvas itself
-                        width: 794, 
+                        width: A4_WIDTH_PX, 
                         height: 1123,
                     });
 
+                    // Restore scaling after taking the snapshot
+                    page.style.transform = originalTransform;
+
                     const imgData = canvas.toDataURL('image/jpeg', 1.0);
                     
-                    // Add the image to the PDF page (A4 dimensions in pt: 595.28 x 841.89)
+                    // A4 dimensions in pt: 595.28 x 841.89
                     pdf.addImage(imgData, 'JPEG', 0, 0, 595.28, 841.89); 
                 }
                 
@@ -384,6 +432,9 @@
 
                 downloadPdfButton.disabled = false;
                 downloadPdfButton.textContent = '⬇️ DOWNLOAD PDF';
+                
+                // Re-apply scaling in case the originalTransform didn't stick due to async issues
+                applyScaling();
             });
 
             // --- Copy Output Function (Same) ---
@@ -408,6 +459,9 @@
 
             // Use the debounced function for input event
             inputArea.addEventListener('input', debouncedConvertMarkdown);
+            
+            // Recalculate scaling when the window size changes (e.g., mobile orientation change)
+            window.addEventListener('resize', debounce(applyScaling, 150));
             
             // Initialization - Run once immediately on load
             convertMarkdown(); 
