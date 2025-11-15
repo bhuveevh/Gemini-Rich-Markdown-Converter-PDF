@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=1200, initial-scale=1.0, user-scalable=yes">
     <title>Gemini Rich Markdown Converter PDF</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/showdown/2.1.0/showdown.min.js"></script>
@@ -25,7 +25,7 @@
     </script>
 
     <style>
-        /* --- General and Layout Styling (Flat UI - Unchanged) --- */
+        /* --- General and Layout Styling (Flat UI) --- */
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: #f4f7f6;
@@ -42,12 +42,13 @@
             background: #fff; 
             padding: 20px; 
             border: 1px solid #ddd; 
-            box-shadow: none; 
-            border-radius: 0;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05); /* Added slight shadow back for standalone file */
+            border-radius: 4px; /* Added slight radius back for standalone file */
+            box-sizing: border-box;
         }
         h1 { color: #007bff; text-align: center; margin-bottom: 20px; }
         
-        /* Layout: Stacked (Input Top, Output Bottom - Unchanged) */
+        /* Layout: Stacked (Input Top, Output Bottom) */
         .stacked-view { 
             display: flex; 
             flex-direction: column; 
@@ -93,7 +94,7 @@
         #copy-output:hover { background-color: #5a6268; }
         #download-pdf:hover { background-color: #0056b3; }
 
-        /* --- WYSIWYG A4 Page Container (Whole page scrolls - Unchanged) --- */
+        /* --- WYSIWYG A4 Page Container --- */
         #formatted-output-wrapper {
             height: initial; 
             overflow-y: visible; 
@@ -103,7 +104,7 @@
             border-radius: 0;
         }
         
-        /* --- A4 Page Styling (The Core Layout - Unchanged) --- */
+        /* --- A4 Page Styling (The Core Layout) --- */
         .a4-page {
             width: 794px; 
             min-height: 1123px; 
@@ -122,7 +123,7 @@
             position: relative;
         }
 
-        /* --- Custom Columns inside A4 Page (Unchanged) --- */
+        /* --- Custom Columns inside A4 Page --- */
         .page-column {
             width: calc(50% - 15px); 
             min-height: 100%; 
@@ -131,77 +132,15 @@
             page-break-inside: avoid; 
         }
 
-        /* --- Markdown Element Styles (within A4 Page - Unchanged) --- */
-        .page-column table { 
-            width: 100%; 
-            border-collapse: collapse; 
-            margin: 10px 0; 
-            font-size: 0.95em; 
-        }
-        .page-column th, .page-column td { 
-            border: 1px solid #dee2e6; 
-            padding: 8px; 
-            text-align: left; 
-        }
-        .page-column th { 
-            background-color: #f8f9fa; 
-            font-weight: bold; 
-        }
-        .page-column blockquote { 
-            margin: 10px 0; 
-            padding: 10px 15px; 
-            border-left: 5px solid #007bff; 
-            background-color: #e9f5ff; 
-            border-radius: 0; 
-        }
-        
-        /* Other content styles (Unchanged) */
+        /* --- Markdown Element Styles (within A4 Page) --- */
+        .page-column table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 0.95em; }
+        .page-column th, .page-column td { border: 1px solid #dee2e6; padding: 8px; text-align: left; }
+        .page-column th { background-color: #f8f9fa; font-weight: bold; }
+        .page-column blockquote { margin: 10px 0; padding: 10px 15px; border-left: 5px solid #007bff; background-color: #e9f5ff; border-radius: 0; }
         .page-column h1, .page-column h2, .page-column h3 { color: #212529; border-bottom: 2px solid #e0e0e0; padding-bottom: 8px; margin-top: 20px; margin-bottom: 10px; border-radius: 0; }
         .page-column ul, .page-column ol { padding-left: 30px; margin-bottom: 10px; }
         .page-column li { margin-bottom: 5px; }
-        .link-preview-wrapper { display: block; clear: both; margin: 10px 0; padding: 5px 0; }
-        .link-preview { display: flex; border: 1px solid #ccc; border-radius: 0; overflow: hidden; text-decoration: none; color: inherit; max-width: 100%; background-color: #fcfcfc; }
-        .page-column h1, .page-column h2, .page-column h3, .page-column table, .page-column ul, .page-column ol, .page-column blockquote, .page-column .link-preview-wrapper {
-             page-break-inside: avoid;
-        }
-
-        /* --- MOBILE OPTIMIZATION FIX (Same) --- */
-        @media (max-width: 840px) {
-            .container { padding: 10px; }
-            .stacked-view { gap: 10px; } 
-
-            .output-actions { 
-                justify-content: center; 
-                flex-wrap: wrap; 
-                flex-direction: column; 
-            }
-            .action-button { 
-                width: 100%; 
-                margin-bottom: 5px; 
-            }
-            
-            .a4-page { 
-                width: calc(100% - 20px); 
-                min-height: initial; 
-                padding: 20px; 
-                margin: 10px auto; 
-                flex-direction: column; 
-            }
-            .page-column {
-                width: 100%; 
-            }
-        }
-        
-        /* Extra small screen tuning (down to 300px) */
-        @media (max-width: 400px) {
-            body { padding: 10px; } 
-            .container { padding: 5px; } 
-            .a4-page { 
-                padding: 10px; 
-                width: calc(100% - 10px); 
-            }
-            .action-button { padding: 8px 12px; font-size: 14px; }
-        }
+        .page-column h1, .page-column h2, .page-column h3, .page-column table, .page-column ul, .page-column ol, .page-column blockquote, .page-column .link-preview-wrapper { page-break-inside: avoid; }
     </style>
 </head>
 <body>
@@ -296,6 +235,15 @@
             { type: 'output', regex: /<a href="([^"]+)">([^<]+)<\/a>/g, replace: (match, url, text) => { if (match.includes('link-preview-wrapper')) return match; return createPreviewHtml(url, text); } }
         ];
 
+        // --- 2. PERFORMANCE FIX: Debounce function to prevent lag on every keypress ---
+        function debounce(func, delay) {
+            let timeout;
+            return function(...args) {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(this, args), delay);
+            };
+        }
+
         // --- Core Conversion Function (With Robust Content Loss Fix Applied) ---
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -320,6 +268,7 @@
                 outputWrapper.innerHTML = ''; 
 
                 const tempDiv = document.createElement('div');
+                tempDiv.id = 'temp-calculation-div'; 
                 tempDiv.style.visibility = 'hidden'; 
                 tempDiv.style.position = 'absolute';
                 document.body.appendChild(tempDiv);
@@ -381,11 +330,14 @@
                 document.body.removeChild(tempDiv);
                 
                 // *** Step 2: FINAL FIX - Re-typeset MathJax on the final output to confirm correct sizing after moving ***
-                // This ensures content like MathJax and Tables are accurately sized after being placed into the final columns.
                 if (window.MathJax) {
                     await MathJax.typesetPromise([outputWrapper]); 
                 }
             }
+
+            // Create a debounced version of the conversion function (300ms delay)
+            const debouncedConvertMarkdown = debounce(convertMarkdown, 300);
+
 
             // --- PDF Download Function (Same) ---
             downloadPdfButton.addEventListener('click', async () => {
@@ -395,7 +347,6 @@
                 
                 if (pages.length === 0) return; 
 
-                // UPDATED: English Button Text
                 downloadPdfButton.disabled = true;
                 downloadPdfButton.textContent = 'GENERATING PDF...';
 
@@ -420,12 +371,11 @@
                 
                 pdf.save("Gemini Rich Markdown Converter PDF_Compressandresize_space.pdf");
 
-                // UPDATED: English Button Text
                 downloadPdfButton.disabled = false;
                 downloadPdfButton.textContent = '⬇️ DOWNLOAD PDF';
             });
 
-            // --- Copy Output Function (Same, but with English messages) ---
+            // --- Copy Output Function (Same) ---
             copyOutputButton.addEventListener('click', () => {
                 const textToCopy = Array.from(outputWrapper.querySelectorAll('.a4-page'))
                     .map(page => page.innerText)
@@ -433,24 +383,22 @@
                 
                 navigator.clipboard.writeText(textToCopy)
                     .then(() => {
-                        // UPDATED: English Status
                         copyOutputButton.textContent = '✅ COPIED!';
                     })
                     .catch(() => {
-                        // UPDATED: English Status
                         copyOutputButton.textContent = '❌ FAILED TO COPY';
                     })
                     .finally(() => {
                         setTimeout(() => {
-                            // UPDATED: English Button Text
                             copyOutputButton.textContent = '📋 COPY OUTPUT';
                         }, 2000);
                     });
             });
 
-            inputArea.addEventListener('input', convertMarkdown);
+            // Use the debounced function for input event
+            inputArea.addEventListener('input', debouncedConvertMarkdown);
             
-            // Initialization
+            // Initialization - Run once immediately on load
             convertMarkdown(); 
         });
     </script>
