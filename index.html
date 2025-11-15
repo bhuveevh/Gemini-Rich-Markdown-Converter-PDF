@@ -100,7 +100,7 @@
         /* --- WYSIWYG A4 Page Container (The wrapper that contains the scaled A4 content) --- */
         #formatted-output-wrapper {
             height: initial; 
-            overflow: hidden; /* Hide overflow of the scaled content */
+            overflow: hidden; 
             background-color: transparent; 
             padding: 0;
             box-shadow: none;
@@ -110,10 +110,10 @@
         
         /* --- A4 Page Styling (The Core Layout) --- */
         .a4-page {
-            /* 1. CONTENT FIX: Reverted to fixed A4 width (794px) to preserve original content layout */
+            /* CONTENT FIX: Fixed A4 width (794px) to preserve original content layout */
             width: 794px; 
             min-height: 1123px; 
-            margin: 20px 0; /* Remove auto margins, let the wrapper center it */
+            margin: 20px 0; 
             background: white;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15); 
             border-radius: 4px; 
@@ -129,7 +129,7 @@
             text-align: justify; 
             
             /* CSS TRANSFORM related styles for scaling */
-            transform-origin: top left; /* Scale from top left corner */
+            transform-origin: top left; 
         }
 
         /* --- Custom Columns inside A4 Page --- */
@@ -149,7 +149,13 @@
         .page-column h1, .page-column h2, .page-column h3 { color: #212529; border-bottom: 2px solid #e0e0e0; padding-bottom: 8px; margin-top: 20px; margin-bottom: 10px; border-radius: 0; text-align: left; }
         .page-column ul, .page-column ol { padding-left: 30px; margin-bottom: 10px; text-align: left; }
         .page-column li { margin-bottom: 5px; }
-        .page-column h1, .page-column h2, .page-column h3, .page-column table, .page-column ul, .page-column ol, .page-column blockquote, .page-column .link-preview-wrapper { page-break-inside: avoid; }
+        
+        /* Ensure major blocks are not split across columns/pages (important for content integrity) */
+        .page-column h1, .page-column h2, .page-column h3, 
+        .page-column table, .page-column ul, .page-column ol, 
+        .page-column blockquote, .page-column .link-preview-wrapper { 
+            page-break-inside: avoid; 
+        }
     </style>
 </head>
 <body>
@@ -185,12 +191,14 @@
     </div>
 
     <script>
-        // --- GLOBAL VARIABLES (Same) ---
+        // --- GLOBAL VARIABLES ---
         let mathExpressions = [];
         const PLACEHOLDER_IMG = 'https://via.placeholder.com/80x80.png?text=Link';
         const MATH_PLACEHOLDER_PREFIX = '@@MATHEXPRESSION';
-        const A4_WIDTH_PX = 794; // Fixed A4 width for scaling calculation and PDF generation
-        const COLUMN_HEIGHT_LIMIT = 1123 - (50 * 2); 
+        const A4_WIDTH_PX = 794; 
+        const A4_HEIGHT_PX = 1123;
+        const PAGE_PADDING = 50; 
+        const COLUMN_HEIGHT_LIMIT = A4_HEIGHT_PX - (PAGE_PADDING * 2); 
         
         // --- Helper Functions (Same) ---
         function cleanUrl(url) {
@@ -255,7 +263,7 @@
             };
         }
         
-        // --- NEW: Scaling Logic ---
+        // --- Scaling Logic (Same) ---
         function applyScaling() {
             const outputPanel = document.querySelector('.output-panel');
             const wrapper = document.getElementById('formatted-output-wrapper');
@@ -263,29 +271,28 @@
             
             if (pages.length === 0 || !outputPanel) return;
 
-            // Calculate the maximum available width for the scaled content
-            const availableWidth = outputPanel.clientWidth - 30; // 30px is roughly the output-panel padding on both sides (15px each)
+            const availableWidth = outputPanel.clientWidth - 30; 
 
-            // Calculate the scale factor
             let scale = 1;
             if (availableWidth < A4_WIDTH_PX) {
-                // If available width is less than the fixed A4 width, scale it down.
                 scale = availableWidth / A4_WIDTH_PX;
             } else {
-                // If available width is enough, do not scale (or scale to 1)
                 scale = 1; 
             }
 
-            // Apply the transform scale to all pages
             pages.forEach(page => {
                 page.style.transform = `scale(${scale})`;
             });
 
-            // Adjust the wrapper height to contain the scaled content
+            // Adjust the wrapper size to contain the scaled content
             if (scale < 1) {
-                wrapper.style.height = `${pages[0].offsetHeight * scale + 40}px`; // Adjust wrapper height for the scaled page height + some margin
-                wrapper.style.width = `${pages[0].offsetWidth * scale}px`; // Adjust wrapper width
-                wrapper.style.margin = '0 auto'; // Center the scaled wrapper
+                // Use the dimensions of the first page for wrapper sizing
+                const scaledHeight = pages[0].offsetHeight * scale;
+                const scaledWidth = pages[0].offsetWidth * scale;
+                
+                wrapper.style.height = `${scaledHeight + 40}px`; 
+                wrapper.style.width = `${scaledWidth}px`; 
+                wrapper.style.margin = '0 auto'; 
             } else {
                 wrapper.style.height = 'initial';
                 wrapper.style.width = 'initial';
@@ -293,8 +300,13 @@
             }
         }
 
+        // --- Content Integrity Check ---
+        function isUnbreakableBlock(element) {
+            const unbreakableTags = ['UL', 'OL', 'TABLE', 'BLOCKQUOTE', 'H1', 'H2', 'H3', 'HR', 'PRE', 'DIV'];
+            return unbreakableTags.includes(element.tagName) || element.classList.contains('link-preview-wrapper');
+        }
 
-        // --- Core Conversion Function (With Scaling Called) ---
+        // --- Core Conversion Function (Improved Paging Logic) ---
 
         document.addEventListener('DOMContentLoaded', () => {
             const inputArea = document.getElementById('markdown-input');
@@ -319,6 +331,7 @@
                 tempDiv.id = 'temp-calculation-div'; 
                 tempDiv.style.visibility = 'hidden'; 
                 tempDiv.style.position = 'absolute';
+                tempDiv.style.width = `${A4_WIDTH_PX}px`; // Use actual A4 width for proper layout calculation
                 document.body.appendChild(tempDiv);
                 tempDiv.innerHTML = htmlOutput;
                 
@@ -330,48 +343,105 @@
                 const blocks = Array.from(tempDiv.children);
                 
                 let currentPage = null;
-                let currentLeftColumn = null;
-                let currentRightColumn = null;
+                let currentColumn = null;
+                const columnOrder = ['left', 'right'];
                 
                 function createNewPageAndColumns() {
                     currentPage = document.createElement('div');
                     currentPage.classList.add('a4-page');
                     outputWrapper.appendChild(currentPage);
 
-                    currentLeftColumn = document.createElement('div');
-                    currentLeftColumn.classList.add('page-column', 'left-column');
-                    currentPage.appendChild(currentLeftColumn);
+                    const leftColumn = document.createElement('div');
+                    leftColumn.classList.add('page-column', 'left-column');
+                    currentPage.appendChild(leftColumn);
 
-                    currentRightColumn = document.createElement('div');
-                    currentRightColumn.classList.add('page-column', 'right-column');
-                    currentPage.appendChild(currentRightColumn);
+                    const rightColumn = document.createElement('div');
+                    rightColumn.classList.add('page-column', 'right-column');
+                    currentPage.appendChild(rightColumn);
+                    
+                    return { left: leftColumn, right: rightColumn };
                 }
 
-                createNewPageAndColumns(); 
+                const { left, right } = createNewPageAndColumns();
+                let columns = { left, right };
+                currentColumn = columns.left;
 
                 for (const block of blocks) {
                     const clonedBlock = block.cloneNode(true); 
 
-                    // 1. Try placing in the Left Column
-                    currentLeftColumn.appendChild(clonedBlock);
-                    currentLeftColumn.offsetHeight; 
+                    // Get current column index (0 for left, 1 for right)
+                    const columnIndex = (currentColumn === columns.left) ? 0 : 1;
+                    const nextColumnKey = columnOrder[(columnIndex + 1) % 2];
+                    
+                    // 1. Try placing in the Current Column
+                    currentColumn.appendChild(clonedBlock);
+                    
+                    // Force reflow and get current height
+                    const currentColumnHeight = currentColumn.scrollHeight; 
 
-                    if (currentLeftColumn.scrollHeight > COLUMN_HEIGHT_LIMIT) {
+                    if (currentColumnHeight > COLUMN_HEIGHT_LIMIT) {
                         
-                        // Too large for Left. Remove and try Right.
-                        currentLeftColumn.removeChild(clonedBlock);
-                        currentRightColumn.appendChild(clonedBlock);
-                        currentRightColumn.offsetHeight; 
-
-                        if (currentRightColumn.scrollHeight > COLUMN_HEIGHT_LIMIT) {
+                        // It doesn't fit in the current column.
+                        currentColumn.removeChild(clonedBlock);
+                        
+                        // Check if it's unbreakable (like a table or a heading)
+                        if (isUnbreakableBlock(clonedBlock)) {
+                            // If Unbreakable: Try the next logical placement.
                             
-                            // Too large for Right. Remove and go to New Page.
-                            currentRightColumn.removeChild(clonedBlock);
+                            // If current column is LEFT, try RIGHT.
+                            if (currentColumn === columns.left) {
+                                currentColumn = columns.right;
+                                currentColumn.appendChild(clonedBlock);
+                                
+                                if (currentColumn.scrollHeight > COLUMN_HEIGHT_LIMIT) {
+                                    // Doesn't fit in RIGHT either. Go to a New Page.
+                                    currentColumn.removeChild(clonedBlock);
+                                    const newCols = createNewPageAndColumns();
+                                    columns = newCols;
+                                    currentColumn = newCols.left;
+                                    currentColumn.appendChild(clonedBlock);
+                                }
+                            } 
+                            // If current column is RIGHT, must go to a New Page (and start at LEFT)
+                            else if (currentColumn === columns.right) {
+                                const newCols = createNewPageAndColumns();
+                                columns = newCols;
+                                currentColumn = newCols.left;
+                                currentColumn.appendChild(clonedBlock);
+                            }
                             
-                            createNewPageAndColumns();
-                            currentLeftColumn.appendChild(clonedBlock);
-                            currentLeftColumn.offsetHeight; 
+                        } else {
+                            // If Breakable (like a paragraph): It should not exceed limit if it's the first element.
+                            // Since we have basic column-break logic for paragraphs, we assume this is a content loss fix scenario.
+                            // Simply move to the next column/page.
+                            
+                            if (currentColumn === columns.left) {
+                                currentColumn = columns.right;
+                                currentColumn.appendChild(clonedBlock);
+                            } else {
+                                const newCols = createNewPageAndColumns();
+                                columns = newCols;
+                                currentColumn = newCols.left;
+                                currentColumn.appendChild(clonedBlock);
+                            }
                         }
+                    } 
+
+                    // If the block was added successfully and we were on the right column, move to next page/left column.
+                    if (currentColumn === columns.right && currentColumn.contains(clonedBlock)) {
+                         const newCols = createNewPageAndColumns();
+                         columns = newCols;
+                         currentColumn = newCols.left;
+                    }
+                    
+                    // If the block was added successfully to the left column, move to the right column.
+                    if (currentColumn === columns.left && currentColumn.contains(clonedBlock)) {
+                        currentColumn = columns.right;
+                    }
+
+                    // Ensure the current column reference is correct after potential page break
+                    if (!currentColumn.parentElement.contains(currentColumn)) {
+                         currentColumn = columns.left; // Reset if it somehow got detached (shouldn't happen with the logic above)
                     }
                 }
                 
@@ -382,15 +452,14 @@
                     await MathJax.typesetPromise([outputWrapper]); 
                 }
                 
-                // *** NEW: Apply scaling after content is rendered ***
+                // *** Apply scaling after content is rendered ***
                 applyScaling();
             }
 
-            // Create a debounced version of the conversion function (300ms delay)
             const debouncedConvertMarkdown = debounce(convertMarkdown, 300);
 
 
-            // --- PDF Download Function (PDF sizing is FIXED at 794x1123 for A4) ---
+            // --- PDF Download Function (High Quality and Fixed A4 Size) ---
             downloadPdfButton.addEventListener('click', async () => {
                 const { jsPDF } = window.jspdf;
                 const pdf = new jsPDF('p', 'pt', 'a4'); 
@@ -399,7 +468,12 @@
                 if (pages.length === 0) return; 
 
                 downloadPdfButton.disabled = true;
-                downloadPdfButton.textContent = 'GENERATING PDF...';
+                downloadPdfButton.textContent = 'GENERATING PDF (HD)...';
+
+                // High-quality settings
+                const PDF_RENDER_SCALE = 2.5; // Increased scale for HD quality
+                const FINAL_WIDTH_PT = 595.28;
+                const FINAL_HEIGHT_PT = 841.89;
 
                 for (let i = 0; i < pages.length; i++) {
                     const page = pages[i];
@@ -408,32 +482,33 @@
                         pdf.addPage();
                     }
 
-                    // Temporarily remove scaling before taking the snapshot
+                    // Temporarily remove scaling for accurate snapshot
                     const originalTransform = page.style.transform;
                     page.style.transform = 'scale(1)'; 
                     
+                    // Render canvas with higher scale for better quality
                     const canvas = await html2canvas(page, {
-                        scale: 1.5, 
+                        scale: PDF_RENDER_SCALE, 
                         useCORS: true,
+                        // Use the scaled-up dimensions for the canvas to maintain quality
                         width: A4_WIDTH_PX, 
-                        height: 1123,
+                        height: A4_HEIGHT_PX,
                     });
 
-                    // Restore scaling after taking the snapshot
+                    // Restore scaling
                     page.style.transform = originalTransform;
 
-                    const imgData = canvas.toDataURL('image/jpeg', 1.0);
+                    const imgData = canvas.toDataURL('image/jpeg', 1.0); // Use 1.0 quality for JPEG
                     
-                    // A4 dimensions in pt: 595.28 x 841.89
-                    pdf.addImage(imgData, 'JPEG', 0, 0, 595.28, 841.89); 
+                    // Add the image to the PDF page (A4 dimensions in pt)
+                    pdf.addImage(imgData, 'JPEG', 0, 0, FINAL_WIDTH_PT, FINAL_HEIGHT_PT); 
                 }
                 
-                pdf.save("Gemini Rich Markdown Converter PDF_Compressandresize_space.pdf");
+                pdf.save("Gemini Rich Markdown Converter PDF_HD.pdf");
 
                 downloadPdfButton.disabled = false;
                 downloadPdfButton.textContent = '⬇️ DOWNLOAD PDF';
                 
-                // Re-apply scaling in case the originalTransform didn't stick due to async issues
                 applyScaling();
             });
 
@@ -457,13 +532,11 @@
                     });
             });
 
-            // Use the debounced function for input event
+            // Event Listeners
             inputArea.addEventListener('input', debouncedConvertMarkdown);
-            
-            // Recalculate scaling when the window size changes (e.g., mobile orientation change)
             window.addEventListener('resize', debounce(applyScaling, 150));
             
-            // Initialization - Run once immediately on load
+            // Initialization
             convertMarkdown(); 
         });
     </script>
