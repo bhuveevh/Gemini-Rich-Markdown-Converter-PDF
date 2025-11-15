@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=1200, initial-scale=1.0, user-scalable=yes">
+    <meta name="viewport" content="width=device-width, initial-scale=0.75, user-scalable=yes">
     <title>Gemini Rich Markdown Converter PDF</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/showdown/2.1.0/showdown.min.js"></script>
@@ -38,12 +38,13 @@
         }
         .container {
             width: 100%; 
-            max-width: 1200px; 
+            /* 1. CONTENT BREAKING FIX: Reduced max-width slightly for better fit */
+            max-width: 1150px; 
             background: #fff; 
             padding: 20px; 
             border: 1px solid #ddd; 
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05); /* Added slight shadow back for standalone file */
-            border-radius: 4px; /* Added slight radius back for standalone file */
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05); 
+            border-radius: 4px; 
             box-sizing: border-box;
         }
         h1 { color: #007bff; text-align: center; margin-bottom: 20px; }
@@ -116,7 +117,8 @@
             padding: 50px; 
             box-sizing: border-box;
             display: flex; 
-            flex-wrap: nowrap; 
+            /* 1. CONTENT BREAKING FIX: Allow wrapping for better layout resilience */
+            flex-wrap: wrap; 
             justify-content: space-between; 
             font-size: 11pt; 
             line-height: 1.5;
@@ -125,13 +127,14 @@
 
         /* --- Custom Columns inside A4 Page --- */
         .page-column {
-            width: calc(50% - 15px); 
+            /* 1. CONTENT BREAKING FIX: Reduced column width to create more space */
+            width: calc(48% - 10px); 
             min-height: 100%; 
             box-sizing: border-box; 
             overflow: hidden; 
             page-break-inside: avoid; 
         }
-
+        
         /* --- Markdown Element Styles (within A4 Page) --- */
         .page-column table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 0.95em; }
         .page-column th, .page-column td { border: 1px solid #dee2e6; padding: 8px; text-align: left; }
@@ -235,7 +238,7 @@
             { type: 'output', regex: /<a href="([^"]+)">([^<]+)<\/a>/g, replace: (match, url, text) => { if (match.includes('link-preview-wrapper')) return match; return createPreviewHtml(url, text); } }
         ];
 
-        // --- 2. PERFORMANCE FIX: Debounce function to prevent lag on every keypress ---
+        // --- PERFORMANCE FIX: Debounce function to prevent lag on every keypress ---
         function debounce(func, delay) {
             let timeout;
             return function(...args) {
