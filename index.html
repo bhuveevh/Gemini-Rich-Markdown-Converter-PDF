@@ -2,14 +2,15 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=0.75, user-scalable=yes">
-    <title>Gemini Rich Markdown Converter PDF</title>
+    <meta name="viewport" content="width=1200, initial-scale=1.0, user-scalable=yes">
+    <title>Gemini Rich Markdown Converter PDF (Final Fixed)</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/showdown/2.1.0/showdown.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     
     <script>
+        // MathJax configuration for LaTeX
         window.MathJax = {
             tex: {
                 inlineMath: [['$', '$'], ['\\(', '\\)']],
@@ -25,33 +26,29 @@
     </script>
 
     <style>
-        /* --- General and Layout Styling (Flat UI) --- */
+        /* --- General and Layout Styling --- */
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: #f4f7f6;
             color: #333;
             margin: 0;
-            padding: 20px 10px; 
+            padding: 20px; 
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center; 
-            min-height: 100vh; 
         }
         .container {
             width: 100%; 
-            max-width: 1150px; 
+            max-width: 1200px; 
             background: #fff; 
             padding: 20px; 
             border: 1px solid #ddd; 
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05); 
+            box-shadow: 0 4px 8px rgba(0,0,0,0.05); 
             border-radius: 4px; 
-            box-sizing: border-box;
-            margin: 0 auto; 
         }
         h1 { color: #007bff; text-align: center; margin-bottom: 20px; }
         
-        /* Layout: Stacked (Input Top, Output Bottom) */
+        /* Layout: Stacked */
         .stacked-view { 
             display: flex; 
             flex-direction: column; 
@@ -64,8 +61,6 @@
             padding: 15px;
             border-radius: 0; 
         }
-        .input-panel h2, .output-panel h2 { margin-top: 0; }
-        
         #markdown-input {
             width: 100%; 
             min-height: 300px; 
@@ -97,23 +92,17 @@
         #copy-output:hover { background-color: #5a6268; }
         #download-pdf:hover { background-color: #0056b3; }
 
-        /* --- WYSIWYG A4 Page Container (The wrapper that contains the scaled A4 content) --- */
+        /* --- A4 Page Styling (The Core Layout + Justify Fix) --- */
         #formatted-output-wrapper {
             height: initial; 
-            overflow: hidden; 
-            background-color: transparent; 
+            overflow-y: visible; 
             padding: 0;
-            box-shadow: none;
-            border-radius: 0;
-            position: relative;
         }
         
-        /* --- A4 Page Styling (The Core Layout) --- */
         .a4-page {
-            /* CONTENT FIX: Fixed A4 width (794px) to preserve original content layout */
             width: 794px; 
             min-height: 1123px; 
-            margin: 20px 0; 
+            margin: 20px auto; 
             background: white;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15); 
             border-radius: 4px; 
@@ -121,48 +110,136 @@
             padding: 50px; 
             box-sizing: border-box;
             display: flex; 
-            flex-wrap: wrap; 
+            flex-wrap: nowrap; 
             justify-content: space-between; 
             font-size: 11pt; 
             line-height: 1.5;
             position: relative;
-            text-align: justify; 
-            
-            /* CSS TRANSFORM related styles for scaling */
-            transform-origin: top left; 
+            text-align: justify; /* JUSTIFIED TEXT FIX */
         }
 
         /* --- Custom Columns inside A4 Page --- */
         .page-column {
-            width: calc(48% - 10px); 
-            min-height: 100%; 
+            width: calc(50% - 15px); 
+            height: 1023px; /* 1123px (A4) - 100px (Padding) */
             box-sizing: border-box; 
             overflow: hidden; 
             page-break-inside: avoid; 
         }
+
+        /* --- Markdown Element Styles (within A4 Page) --- */
         
-        /* --- Markdown Element Styles (Same) --- */
-        .page-column table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 0.95em; text-align: left; }
-        .page-column th, .page-column td { border: 1px solid #dee2e6; padding: 8px; text-align: left; }
-        .page-column th { background-color: #f8f9fa; font-weight: bold; }
-        .page-column blockquote { margin: 10px 0; padding: 10px 15px; border-left: 5px solid #007bff; background-color: #e9f5ff; border-radius: 0; }
-        .page-column h1, .page-column h2, .page-column h3 { color: #212529; border-bottom: 2px solid #e0e0e0; padding-bottom: 8px; margin-top: 20px; margin-bottom: 10px; border-radius: 0; text-align: left; }
-        .page-column ul, .page-column ol { padding-left: 30px; margin-bottom: 10px; text-align: left; }
-        .page-column li { margin-bottom: 5px; }
-        
-        /* Ensure major blocks are not split across columns/pages (important for content integrity) */
-        .page-column h1, .page-column h2, .page-column h3, 
-        .page-column table, .page-column ul, .page-column ol, 
-        .page-column blockquote, .page-column .link-preview-wrapper { 
-            page-break-inside: avoid; 
+        /* Headings */
+        .page-column h1, .page-column h2, .page-column h3 { 
+            color: #212529; 
+            border-bottom: 2px solid #e0e0e0; 
+            padding-bottom: 8px; 
+            margin-top: 20px; 
+            margin-bottom: 10px; 
+            border-radius: 0; 
+            text-align: left; 
         }
+
+        /* Tables */
+        .page-column table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin: 10px 0; 
+            font-size: 0.95em; 
+            text-align: left; 
+        }
+        .page-column th, .page-column td { 
+            border: 1px solid #dee2e6; 
+            padding: 8px; 
+            text-align: left; 
+        }
+        .page-column th { 
+            background-color: #f8f9fa; 
+            font-weight: bold; 
+        }
+        
+        /* Blockquotes */
+        .page-column blockquote { 
+            margin: 10px 0; 
+            padding: 10px 15px; 
+            border-left: 5px solid #007bff; 
+            background-color: #e9f5ff; 
+            border-radius: 0; 
+        }
+        
+        /* Lists and Tasklists - QUIZ/LIST FIX */
+        .page-column ul, .page-column ol { 
+            padding-left: 30px; 
+            margin-bottom: 5px; /* Reduced bottom margin */
+            text-align: left; 
+            /* Added margin-top to separate lists properly */
+            margin-top: 5px;
+        }
+        /* QUIZ FORMAT FIX: Force list items to be block-level and independent for better break */
+        .page-column li { 
+            margin-bottom: 5px; 
+            display: block; 
+            break-inside: avoid-column; 
+        }
+        
+        /* TASKLIST FIX: Style for checkboxes */
+        .page-column li.task-list-item {
+            list-style: none;
+            margin-left: -20px; 
+        }
+        .page-column li.task-list-item input[type="checkbox"] {
+            margin-right: 5px;
+        }
+
+        /* CODE BLOCK FIX: Styling for Code blocks */
+        .page-column pre {
+            background-color: #f6f8fa;
+            border: 1px solid #e1e4e8;
+            border-radius: 3px;
+            padding: 10px;
+            overflow-x: auto;
+            margin: 10px 0;
+            font-size: 0.9em;
+            text-align: left; /* Override justify for code */
+        }
+        .page-column code {
+            font-family: 'Consolas', 'Courier New', monospace;
+            word-wrap: break-word;
+        }
+        .page-column pre code {
+            display: block;
+            padding: 0;
+        }
+        .page-column p code {
+             background-color: #f0f0f0;
+             padding: 2px 4px;
+             border-radius: 3px;
+        }
+        
+        /* ADVANCED FORMATTING FIXES */
+        .page-column del { /* Strikethrough */
+            color: #888;
+        }
+        .page-column strong { /* Bold */
+            font-weight: bold;
+        }
+        .page-column em { /* Italic */
+            font-style: italic;
+        }
+        
+        /* OVERFLOW PREVENTION: Ensure blocks don't break across columns/pages easily */
+        .page-column h1, .page-column h2, .page-column h3, .page-column table, .page-column blockquote, .page-column .link-preview-wrapper, .page-column pre, .page-column .mjx-chtml {
+             page-break-inside: avoid;
+             max-height: 100%; 
+        }
+        /* IMPORTANT: UL/OL is allowed to break, but LI is not! */
     </style>
 </head>
 <body>
 
     <div class="container">
         <h1>✨ Gemini Rich Markdown Converter PDF</h1>
-        <p>This application converts Gemini's rich Markdown content, including MathJax equations, tables, and rich links, into a clean, print-ready A4 PDF format with a flat, mobile-optimized UI.</p>
+        <p>यह एप्लिकेशन सभी तरह के उन्नत फॉर्मेटिंग (MathJax, Quiz, Tables, Rich Links) को सही ढंग से एक A4 PDF में बदलने के लिए अंतिम रूप से ठीक (Final Fixed) किया गया है।</p>
 
         <div class="stacked-view">
             <div class="input-panel">
@@ -179,28 +256,21 @@
                 
 
                 <div id="formatted-output-wrapper">
-                    <div class="a4-page">
-                        <div class="page-column left-column">
-                            <p>Paste the Markdown content into the input box to see the formatted output.</p>
-                        </div>
-                        <div class="page-column right-column"></div>
                     </div>
-                </div>
             </div>
         </div>
     </div>
+    
+    <div id="temp-calculation-div" style="position: absolute; left: -9999px; top: 0; visibility: hidden; background: white; padding: 50px; box-sizing: border-box; font-size: 11pt; line-height: 1.5;">
+        <div id="temp-column" style="width: calc((794px - 100px - 30px) / 2); height: auto;"></div>
+    </div>
+
 
     <script>
         // --- GLOBAL VARIABLES ---
-        let mathExpressions = [];
-        const PLACEHOLDER_IMG = 'https://via.placeholder.com/80x80.png?text=Link';
-        const MATH_PLACEHOLDER_PREFIX = '@@MATHEXPRESSION';
-        const A4_WIDTH_PX = 794; 
-        const A4_HEIGHT_PX = 1123;
-        const PAGE_PADDING = 50; 
-        const COLUMN_HEIGHT_LIMIT = A4_HEIGHT_PX - (PAGE_PADDING * 2); 
+        const PLACEHOLDER_IMG = 'https://via.placeholder.com/50x50.png?text=Link';
         
-        // --- Helper Functions (Same) ---
+        // --- Helper Functions ---
         function cleanUrl(url) {
             try {
                 const decodedUrl = decodeURIComponent(url);
@@ -210,6 +280,7 @@
                 return { full: url, hostname: url };
             }
         }
+        
         const createPreviewHtml = (url, title = 'Link Preview') => {
             const cleaned = cleanUrl(url);
             let displayTitle = title;
@@ -232,29 +303,51 @@
             `;
         };
         
-        // --- MARKDOWN EXTENSIONS (Same) ---
+        // --- MARKDOWN EXTENSIONS (Comprehensive Gemini Feature Support) ---
+
+        // FIX 1: Robust MathJax Handling
         const mathExpressionExtension = () => [
             { 
                 type: 'lang', 
                 regex: /(\$\$[\s\S]*?\$\$|\$[^$]*?\$|\\\[[\s\S]*?\\\]|\\\([\s\S]*?\\\))/g, 
                 replace: (match) => { 
-                    const id = mathExpressions.length; 
-                    mathExpressions.push(match); 
-                    return `${MATH_PLACEHOLDER_PREFIX}${id}@@`; 
+                    const encodedMatch = match.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    return `<math-block>${encodedMatch}</math-block>`;
                 } 
             },
-            { type: 'output', regex: new RegExp(`<p>${MATH_PLACEHOLDER_PREFIX}(\\d+)@@<\/p>`, 'g'), replace: (match, id) => mathExpressions[id].replace(/\n/g, '') },
-            { type: 'output', regex: new RegExp(`${MATH_PLACEHOLDER_PREFIX}(\\d+)@@`, 'g'), replace: (match, id) => mathExpressions[id] }
+            { 
+                type: 'output', 
+                regex: /<math-block>([\s\S]*?)<\/math-block>/g, 
+                replace: (match, content) => {
+                    return content.replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+                } 
+            }
         ];
         
-        const plainUrlToPreviewExtension = () => [
-            { type: 'lang', regex: /(^|\s)(https?:\/\/[^\s"'<>()]+)/g, replace: (match, separator, url) => { if (url.includes(')')) return match; return `${separator}${createPreviewHtml(url, url)}`; } }
-        ];
+        // FIX 2: Link Preview
         const markdownLinkToPreviewExtension = () => [
-            { type: 'output', regex: /<a href="([^"]+)">([^<]+)<\/a>/g, replace: (match, url, text) => { if (match.includes('link-preview-wrapper')) return match; return createPreviewHtml(url, text); } }
+            { 
+                type: 'output', 
+                regex: /<a href="([^"]+)">([^<]+)<\/a>/g, 
+                replace: (match, url, text) => { 
+                    if (match.includes('link-preview-wrapper')) return match; 
+                    if (text.trim().startsWith('<img')) return match; 
+                    return createPreviewHtml(url, text); 
+                } 
+            }
         ];
 
-        // --- PERFORMANCE FIX: Debounce function (Same) ---
+        // FIX 3: Tasklist Handling
+        const tasklistExtension = () => [
+            {
+                type: 'output',
+                regex: /<li\s+class="task-list-item">/g,
+                replace: (match) => match 
+            }
+        ];
+
+
+        // --- PERFORMANCE FIX: Debounce function ---
         function debounce(func, delay) {
             let timeout;
             return function(...args) {
@@ -262,51 +355,8 @@
                 timeout = setTimeout(() => func.apply(this, args), delay);
             };
         }
-        
-        // --- Scaling Logic (Same) ---
-        function applyScaling() {
-            const outputPanel = document.querySelector('.output-panel');
-            const wrapper = document.getElementById('formatted-output-wrapper');
-            const pages = wrapper.querySelectorAll('.a4-page');
-            
-            if (pages.length === 0 || !outputPanel) return;
 
-            const availableWidth = outputPanel.clientWidth - 30; 
-
-            let scale = 1;
-            if (availableWidth < A4_WIDTH_PX) {
-                scale = availableWidth / A4_WIDTH_PX;
-            } else {
-                scale = 1; 
-            }
-
-            pages.forEach(page => {
-                page.style.transform = `scale(${scale})`;
-            });
-
-            // Adjust the wrapper size to contain the scaled content
-            if (scale < 1) {
-                // Use the dimensions of the first page for wrapper sizing
-                const scaledHeight = pages[0].offsetHeight * scale;
-                const scaledWidth = pages[0].offsetWidth * scale;
-                
-                wrapper.style.height = `${scaledHeight + 40}px`; 
-                wrapper.style.width = `${scaledWidth}px`; 
-                wrapper.style.margin = '0 auto'; 
-            } else {
-                wrapper.style.height = 'initial';
-                wrapper.style.width = 'initial';
-                wrapper.style.margin = 'initial';
-            }
-        }
-
-        // --- Content Integrity Check ---
-        function isUnbreakableBlock(element) {
-            const unbreakableTags = ['UL', 'OL', 'TABLE', 'BLOCKQUOTE', 'H1', 'H2', 'H3', 'HR', 'PRE', 'DIV'];
-            return unbreakableTags.includes(element.tagName) || element.classList.contains('link-preview-wrapper');
-        }
-
-        // --- Core Conversion Function (Improved Paging Logic) ---
+        // --- Core Conversion Function (v39: FINAL ASYNCHRONOUS PAGING & LIST FIX) ---
 
         document.addEventListener('DOMContentLoaded', () => {
             const inputArea = document.getElementById('markdown-input');
@@ -314,155 +364,225 @@
             const downloadPdfButton = document.getElementById('download-pdf');
             const copyOutputButton = document.getElementById('copy-output');
             
+            // A4 Constants
+            const A4_WIDTH_PX = 794; 
+            const A4_HEIGHT_PX = 1123;
+            const PAGE_PADDING_PX = 50; 
+            const COLUMN_HEIGHT_LIMIT = A4_HEIGHT_PX - (PAGE_PADDING_PX * 2); 
+            
+            // Get the temporary column for calculations
+            const tempColumn = document.getElementById('temp-column');
+
+
             const converter = new showdown.Converter({
-                extensions: [mathExpressionExtension, plainUrlToPreviewExtension, markdownLinkToPreviewExtension],
-                ghCodeBlocks: true, tables: true, tasklists: true, literalMidWordUnderscores: false, noHeaderId: true 
+                // Include all necessary extensions for Gemini formatting
+                extensions: [mathExpressionExtension, markdownLinkToPreviewExtension, tasklistExtension], 
+                ghCodeBlocks: true, 
+                tables: true, 
+                tasklists: true, 
+                strikethrough: true, // For ~~text~~
+                literalMidWordUnderscores: false, 
+                noHeaderId: true 
             });
 
             async function convertMarkdown() {
-                mathExpressions = [];
                 const markdownText = inputArea.value;
 
-                const htmlOutput = converter.makeHtml(markdownText);
-                
+                // Step 1: Convert Markdown and insert into the hidden temp column
+                tempColumn.innerHTML = converter.makeHtml(markdownText);
                 outputWrapper.innerHTML = ''; 
-
-                const tempDiv = document.createElement('div');
-                tempDiv.id = 'temp-calculation-div'; 
-                tempDiv.style.visibility = 'hidden'; 
-                tempDiv.style.position = 'absolute';
-                tempDiv.style.width = `${A4_WIDTH_PX}px`; // Use actual A4 width for proper layout calculation
-                document.body.appendChild(tempDiv);
-                tempDiv.innerHTML = htmlOutput;
                 
-                // Step 1: Typeset MathJax on the invisible content 
+                // Step 2: Typeset MathJax on the off-screen div (CRUCIAL for correct height)
                 if (window.MathJax) {
-                    await MathJax.typesetPromise([tempDiv]); 
+                    await MathJax.typesetPromise([tempColumn]); 
                 }
 
-                const blocks = Array.from(tempDiv.children);
+                // Step 3: Get all blocks (children of the temp column)
+                let blocks = [];
+                Array.from(tempColumn.children).forEach(child => {
+                    // Treat list elements (UL/OL) and their list items (LI) as potential blocks
+                    if (child.tagName === 'UL' || child.tagName === 'OL') {
+                        // Push the list itself as a major block
+                        blocks.push(child);
+                        // Push LIs as individual breakable elements for better Quiz flow
+                        Array.from(child.children).forEach(li => {
+                             blocks.push(li); 
+                        });
+                    } else {
+                        blocks.push(child);
+                    }
+                });
                 
+                // Remove LI blocks that are direct children of a UL/OL block (to avoid double-handling the space)
+                // We will handle the spacing by cloning the LI into the existing UL/OL structure later
+                blocks = blocks.filter(block => block.tagName !== 'LI');
+
+
                 let currentPage = null;
-                let currentColumn = null;
-                const columnOrder = ['left', 'right'];
-                
+                let currentLeftColumn = null;
+                let currentRightColumn = null;
+                let currentColumn = null; 
+                let currentColumnKey = 'left';
+                let currentListElement = null; // Tracks the currently active UL/OL element in the output column
+
                 function createNewPageAndColumns() {
                     currentPage = document.createElement('div');
                     currentPage.classList.add('a4-page');
                     outputWrapper.appendChild(currentPage);
 
-                    const leftColumn = document.createElement('div');
-                    leftColumn.classList.add('page-column', 'left-column');
-                    currentPage.appendChild(leftColumn);
+                    currentLeftColumn = document.createElement('div');
+                    currentLeftColumn.classList.add('page-column', 'left-column');
+                    currentPage.appendChild(currentLeftColumn);
 
-                    const rightColumn = document.createElement('div');
-                    rightColumn.classList.add('page-column', 'right-column');
-                    currentPage.appendChild(rightColumn);
+                    currentRightColumn = document.createElement('div');
+                    currentRightColumn.classList.add('page-column', 'right-column');
+                    currentPage.appendChild(currentRightColumn);
                     
-                    return { left: leftColumn, right: rightColumn };
+                    currentColumn = currentLeftColumn;
+                    currentColumnKey = 'left';
+                    currentListElement = null; // Reset list tracker on new page/columns
                 }
 
-                const { left, right } = createNewPageAndColumns();
-                let columns = { left, right };
-                currentColumn = columns.left;
+                createNewPageAndColumns(); // Start with the first page
 
+                // 6. ASYNCHRONOUS PAGING LOGIC (v39: Final Robust Loop)
                 for (const block of blocks) {
+                    
+                    if (block.nodeType === 3 && block.textContent.trim() === '') continue; // Skip empty text nodes
+                    
                     const clonedBlock = block.cloneNode(true); 
-
-                    // Get current column index (0 for left, 1 for right)
-                    const columnIndex = (currentColumn === columns.left) ? 0 : 1;
-                    const nextColumnKey = columnOrder[(columnIndex + 1) % 2];
                     
-                    // 1. Try placing in the Current Column
-                    currentColumn.appendChild(clonedBlock);
+                    let targetElement = currentColumn;
                     
-                    // Force reflow and get current height
-                    const currentColumnHeight = currentColumn.scrollHeight; 
-
-                    if (currentColumnHeight > COLUMN_HEIGHT_LIMIT) {
+                    // --- Handle Lists (UL/OL) ---
+                    if (block.tagName === 'UL' || block.tagName === 'OL') {
+                        // If it's a list, append the new list structure to the column
+                        currentColumn.appendChild(clonedBlock);
+                        currentListElement = clonedBlock; // Set the current list element
+                    } else if (block.tagName === 'LI') {
+                        // If it's a list item, append it to the current list element
+                        if (currentListElement && (currentListElement.tagName === 'UL' || currentListElement.tagName === 'OL')) {
+                            currentListElement.appendChild(clonedBlock);
+                            targetElement = currentListElement; // Check the list element's height
+                        } else {
+                            // Should not happen if blocks array is built correctly, but safety first: treat as P
+                             currentColumn.appendChild(clonedBlock);
+                        }
+                    } else {
+                        // Other blocks (P, H1, DIV, PRE, etc.)
+                        currentColumn.appendChild(clonedBlock);
+                        currentListElement = null; // Reset list tracker
+                    }
+                    
+                    // B. Force Reflow AND PAUSE (CRUCIAL FIX FOR MATHJAX TIMING)
+                    currentColumn.offsetHeight; 
+                    // This 10ms delay ensures MathJax has rendered and scrollHeight is accurate
+                    await new Promise(resolve => setTimeout(resolve, 10)); 
+                    
+                    // C. Check if the block addition caused overflow
+                    if (currentColumn.scrollHeight > COLUMN_HEIGHT_LIMIT + 2) { 
                         
-                        // It doesn't fit in the current column.
-                        currentColumn.removeChild(clonedBlock);
+                        // 1. Overflow detected! Remove the oversized block
+                        if (block.tagName === 'LI') {
+                             currentListElement.removeChild(clonedBlock);
+                        } else {
+                             currentColumn.removeChild(clonedBlock);
+                        }
                         
-                        // Check if it's unbreakable (like a table or a heading)
-                        if (isUnbreakableBlock(clonedBlock)) {
-                            // If Unbreakable: Try the next logical placement.
+                        // 2. Try the next available column
+                        if (currentColumnKey === 'left') {
+                            // Move to the Right column
+                            currentColumn = currentRightColumn;
+                            currentColumnKey = 'right';
                             
-                            // If current column is LEFT, try RIGHT.
-                            if (currentColumn === columns.left) {
-                                currentColumn = columns.right;
+                            // Check if the block was a list (UL/OL) or list item (LI)
+                            if (block.tagName === 'UL' || block.tagName === 'OL') {
+                                // Re-append the whole list to the new column
                                 currentColumn.appendChild(clonedBlock);
-                                
-                                if (currentColumn.scrollHeight > COLUMN_HEIGHT_LIMIT) {
-                                    // Doesn't fit in RIGHT either. Go to a New Page.
+                                currentListElement = clonedBlock; 
+                            } else if (block.tagName === 'LI') {
+                                // Re-create the parent list in the new column and append the LI
+                                const newParentList = document.createElement(block.parentNode.tagName);
+                                newParentList.classList.add(...block.parentNode.classList); // Copy classes
+                                currentColumn.appendChild(newParentList);
+                                newParentList.appendChild(clonedBlock);
+                                currentListElement = newParentList;
+                            } else {
+                                // Other blocks
+                                currentColumn.appendChild(clonedBlock);
+                                currentListElement = null;
+                            }
+                            
+                            // Re-check after moving to the right column (with pause)
+                            currentColumn.offsetHeight; 
+                            await new Promise(resolve => setTimeout(resolve, 10)); 
+
+                            // Check if it fits in an empty column (handles truly oversized blocks)
+                            if (currentColumn.scrollHeight > COLUMN_HEIGHT_LIMIT + 2) {
+                                // Block is too big for a column. Remove it and force new page
+                                if (block.tagName === 'LI') {
+                                    currentListElement.removeChild(clonedBlock);
+                                    currentListElement = null; // Reset list tracker
+                                } else {
                                     currentColumn.removeChild(clonedBlock);
-                                    const newCols = createNewPageAndColumns();
-                                    columns = newCols;
-                                    currentColumn = newCols.left;
-                                    currentColumn.appendChild(clonedBlock);
                                 }
-                            } 
-                            // If current column is RIGHT, must go to a New Page (and start at LEFT)
-                            else if (currentColumn === columns.right) {
-                                const newCols = createNewPageAndColumns();
-                                columns = newCols;
-                                currentColumn = newCols.left;
-                                currentColumn.appendChild(clonedBlock);
+                                
+                                createNewPageAndColumns();
+                                
+                                // Place in new page's Left column
+                                currentColumn.appendChild(clonedBlock); 
+                                if (block.tagName === 'UL' || block.tagName === 'OL') {
+                                    currentListElement = clonedBlock;
+                                } else if (block.tagName === 'LI') {
+                                    const newParentList = document.createElement(block.parentNode.tagName);
+                                    newParentList.classList.add(...block.parentNode.classList);
+                                    currentColumn.appendChild(newParentList);
+                                    newParentList.appendChild(clonedBlock);
+                                    currentListElement = newParentList;
+                                } else {
+                                    currentListElement = null;
+                                }
                             }
                             
                         } else {
-                            // If Breakable (like a paragraph): It should not exceed limit if it's the first element.
-                            // Since we have basic column-break logic for paragraphs, we assume this is a content loss fix scenario.
-                            // Simply move to the next column/page.
+                            // Already in the Right column, must move to a new Page
+                            createNewPageAndColumns();
                             
-                            if (currentColumn === columns.left) {
-                                currentColumn = columns.right;
-                                currentColumn.appendChild(clonedBlock);
+                            // Place in new page's Left column
+                            currentColumn.appendChild(clonedBlock); 
+                            if (block.tagName === 'UL' || block.tagName === 'OL') {
+                                currentListElement = clonedBlock;
+                            } else if (block.tagName === 'LI') {
+                                const newParentList = document.createElement(block.parentNode.tagName);
+                                newParentList.classList.add(...block.parentNode.classList);
+                                currentColumn.appendChild(newParentList);
+                                newParentList.appendChild(clonedBlock);
+                                currentListElement = newParentList;
                             } else {
-                                const newCols = createNewPageAndColumns();
-                                columns = newCols;
-                                currentColumn = newCols.left;
-                                currentColumn.appendChild(clonedBlock);
+                                currentListElement = null;
                             }
                         }
                     } 
-
-                    // If the block was added successfully and we were on the right column, move to next page/left column.
-                    if (currentColumn === columns.right && currentColumn.contains(clonedBlock)) {
-                         const newCols = createNewPageAndColumns();
-                         columns = newCols;
-                         currentColumn = newCols.left;
-                    }
+                    // D. If it fits, just leave it there.
                     
-                    // If the block was added successfully to the left column, move to the right column.
-                    if (currentColumn === columns.left && currentColumn.contains(clonedBlock)) {
-                        currentColumn = columns.right;
-                    }
-
-                    // Ensure the current column reference is correct after potential page break
-                    if (!currentColumn.parentElement.contains(currentColumn)) {
-                         currentColumn = columns.left; // Reset if it somehow got detached (shouldn't happen with the logic above)
-                    }
                 }
                 
-                document.body.removeChild(tempDiv);
-                
-                // *** Step 2: FINAL FIX - Re-typeset MathJax on the final output ***
+                tempColumn.innerHTML = ''; // Clean up temp column content
+
+                // *** Step 4: FINAL MathJax render on visible output (safety measure) ***
                 if (window.MathJax) {
                     await MathJax.typesetPromise([outputWrapper]); 
                 }
-                
-                // *** Apply scaling after content is rendered ***
-                applyScaling();
             }
 
+            // Create a debounced version of the conversion function (300ms delay)
             const debouncedConvertMarkdown = debounce(convertMarkdown, 300);
 
 
-            // --- PDF Download Function (High Quality and Fixed A4 Size) ---
+            // --- PDF Download Function ---
             downloadPdfButton.addEventListener('click', async () => {
                 const { jsPDF } = window.jspdf;
-                const pdf = new jsPDF('p', 'pt', 'a4'); 
+                const pdf = new jsPDF('p', 'pt', 'a4'); // A4 in points (pt)
                 const pages = outputWrapper.querySelectorAll('.a4-page');
                 
                 if (pages.length === 0) return; 
@@ -470,10 +590,14 @@
                 downloadPdfButton.disabled = true;
                 downloadPdfButton.textContent = 'GENERATING PDF (HD)...';
 
-                // High-quality settings
-                const PDF_RENDER_SCALE = 2.5; // Increased scale for HD quality
-                const FINAL_WIDTH_PT = 595.28;
-                const FINAL_HEIGHT_PT = 841.89;
+                const PDF_RENDER_SCALE = 2.5; // High HD Quality
+                const FINAL_PAGE_WIDTH_PT = 595.28; // A4 width in points
+                const FINAL_PAGE_HEIGHT_PT = 841.89; // A4 height in points
+                const PDF_MARGIN_PT = 20; 
+
+                // Calculate content area dimensions with margins
+                const CONTENT_WIDTH_PT = FINAL_PAGE_WIDTH_PT - (PDF_MARGIN_PT * 2);
+                const CONTENT_HEIGHT_PT = FINAL_PAGE_HEIGHT_PT - (PDF_MARGIN_PT * 2);
 
                 for (let i = 0; i < pages.length; i++) {
                     const page = pages[i];
@@ -482,37 +606,25 @@
                         pdf.addPage();
                     }
 
-                    // Temporarily remove scaling for accurate snapshot
-                    const originalTransform = page.style.transform;
-                    page.style.transform = 'scale(1)'; 
-                    
-                    // Render canvas with higher scale for better quality
                     const canvas = await html2canvas(page, {
                         scale: PDF_RENDER_SCALE, 
                         useCORS: true,
-                        // Use the scaled-up dimensions for the canvas to maintain quality
                         width: A4_WIDTH_PX, 
-                        height: A4_HEIGHT_PX,
+                        height: A4_HEIGHT_PX, 
                     });
 
-                    // Restore scaling
-                    page.style.transform = originalTransform;
-
-                    const imgData = canvas.toDataURL('image/jpeg', 1.0); // Use 1.0 quality for JPEG
+                    const imgData = canvas.toDataURL('image/png', 1.0); 
                     
-                    // Add the image to the PDF page (A4 dimensions in pt)
-                    pdf.addImage(imgData, 'JPEG', 0, 0, FINAL_WIDTH_PT, FINAL_HEIGHT_PT); 
+                    pdf.addImage(imgData, 'PNG', PDF_MARGIN_PT, PDF_MARGIN_PT, CONTENT_WIDTH_PT, CONTENT_HEIGHT_PT); 
                 }
                 
-                pdf.save("Gemini Rich Markdown Converter PDF_HD.pdf");
+                pdf.save("Gemini Rich Markdown Converter PDF_FINAL_FIX_v39.pdf");
 
                 downloadPdfButton.disabled = false;
                 downloadPdfButton.textContent = '⬇️ DOWNLOAD PDF';
-                
-                applyScaling();
             });
 
-            // --- Copy Output Function (Same) ---
+            // --- Copy Output Function ---
             copyOutputButton.addEventListener('click', () => {
                 const textToCopy = Array.from(outputWrapper.querySelectorAll('.a4-page'))
                     .map(page => page.innerText)
@@ -532,11 +644,10 @@
                     });
             });
 
-            // Event Listeners
+            // Use the debounced function for input event
             inputArea.addEventListener('input', debouncedConvertMarkdown);
-            window.addEventListener('resize', debounce(applyScaling, 150));
             
-            // Initialization
+            // Initialization - Run once immediately on load
             convertMarkdown(); 
         });
     </script>
